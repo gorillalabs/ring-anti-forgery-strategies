@@ -1,4 +1,4 @@
-(defproject ring/ring-anti-forgery-strategies "1.1.0"
+(defproject gorillalabs/ring-anti-forgery-strategies "1.1.0"
             :description "Ring middleware to prevent CSRF attacks"
             :url "https://github.com/ring-clojure/ring-anti-forgery-strategies"
             :license {:name "The MIT License"
