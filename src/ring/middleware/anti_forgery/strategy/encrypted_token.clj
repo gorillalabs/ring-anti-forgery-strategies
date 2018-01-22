@@ -22,7 +22,7 @@
                   :jti (crypto.random/base64 512)           ;; the nonce is to secure encryption (i.e. to prevent replay attacks). Used as JWT ID in the JWT (see https://tools.ietf.org/html/rfc7519#section-4.1.7).
                   :iat (clj-time.coerce/to-epoch (time/now)) ;; Issued at (see https://tools.ietf.org/html/rfc7519#section-4.1.6)
                   :exp (clj-time.coerce/to-epoch (time/plus (time/now) expiration-period)) ;; Expires (see https://tools.ietf.org/html/rfc7519#section-4.1.4)
-                  }
+}
                  secret
                  crypt-options))
 
@@ -45,9 +45,9 @@
             (throw e))
           (when-not (= (:cause (ex-data e)) :exp)
             (log/warn
-              e
-              "Security warning: Potential CSRF-Attack"
-              (ex-data e)))
+             e
+             "Security warning: Potential CSRF-Attack"
+             (ex-data e)))
           false))))
 
   (write-token [_ response _ _]
