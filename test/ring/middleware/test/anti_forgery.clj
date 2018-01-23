@@ -77,7 +77,6 @@
 
 (deftest forgery-protection-via-signed-token-test
   (let [expired-one-hour-ago (time/hours -1)
-
         response {:status 200, :headers {}, :body "Foo"}
         handler (wrap-anti-forgery (constantly response) signed-token-options)
         status= (partial status=* handler)]
@@ -129,7 +128,6 @@
 
 (deftest forgery-protection-via-encrypted-token-test
   (let [expired-one-hour-ago (time/hours -1)
-
         response {:status 200, :headers {}, :body "Foo"}
         handler (wrap-anti-forgery (constantly response) encrypted-token-options)
         status= (partial status=* handler)]
