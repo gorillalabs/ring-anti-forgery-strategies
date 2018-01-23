@@ -26,15 +26,15 @@
 
 (defn create-signed-csrf-token
   ([privkey expiration]
-   (force (strategy/token (signed-token/->SignedTokenSMS nil privkey expiration :identity) nil)))
+   (force (strategy/get-token (signed-token/->SignedTokenSMS nil privkey expiration :identity) nil)))
   ([privkey expiration subject]
-   (force (strategy/token (signed-token/->SignedTokenSMS nil privkey expiration :identity) {:identity subject}))))
+   (force (strategy/get-token (signed-token/->SignedTokenSMS nil privkey expiration :identity) {:identity subject}))))
 
 (defn- valid-signed-token? [public-key token]
   (strategy/valid-token?
     (signed-token/->SignedTokenSMS public-key nil nil :identity)
-    token
-    identity))
+    nil
+    token))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -51,15 +51,15 @@
 
 (defn create-encrypted-csrf-token
   ([secret expiration]
-   (force (strategy/token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) nil)))
+   (force (strategy/get-token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) nil)))
   ([secret expiration subject]
-   (force (strategy/token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) {:identity subject}))))
+   (force (strategy/get-token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) {:identity subject}))))
 
 (defn- valid-encrypted-token? [secret token]
   (strategy/valid-token?
     (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) nil :identity)
-    token
-    identity))
+    nil
+    token))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
