@@ -5,6 +5,7 @@
             [buddy.sign.jwt :as jwt]
             [buddy.core.hash :as hash]
             [crypto.equality :as crypto]
+            [crypto.random]
             [clojure.tools.logging :as log])
   (:import (clojure.lang ExceptionInfo)))
 
@@ -14,17 +15,16 @@
   (hash/sha256 secret))
 
 (deftype EncryptedTokenSMS [secret expiration-period get-subject-fn]
-  strategy/DelayTokenCreation
   strategy/StateManagementStrategy
 
   (token [_ request]
-    (jwt/encrypt {:sub (get-subject-fn request)
+    (delay (jwt/encrypt {:sub (get-subject-fn request)
                   :jti (crypto.random/base64 512)           ;; the nonce is to secure encryption (i.e. to prevent replay attacks). Used as JWT ID in the JWT (see https://tools.ietf.org/html/rfc7519#section-4.1.7).
                   :iat (clj-time.coerce/to-epoch (time/now)) ;; Issued at (see https://tools.ietf.org/html/rfc7519#section-4.1.6)
                   :exp (clj-time.coerce/to-epoch (time/plus (time/now) expiration-period)) ;; Expires (see https://tools.ietf.org/html/rfc7519#section-4.1.4)
 }
                  secret
-                 crypt-options))
+                 crypt-options)))
 
   (valid-token? [_ request read-token]
     (when-let [token (read-token request)]
