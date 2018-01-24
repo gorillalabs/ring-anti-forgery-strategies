@@ -1,4 +1,4 @@
-(ns ring.middleware.anti-forgery.strategy.signed-token
+(ns ring.middleware.anti-forgery.signed-token
   (:require [ring.middleware.anti-forgery.strategy :as strategy]
             [clj-time.core :as time]
             [clj-time.coerce]
@@ -9,9 +9,9 @@
 
 (def ^:private crypt-options {:alg :rs512})
 
-(deftype SignedTokenSMS [public-key private-key expiration-period get-subject-fn]
+(deftype SignedTokenStrategy [public-key private-key expiration-period get-subject-fn]
 
-  strategy/StateManagementStrategy
+  strategy/Strategy
 
   (get-token [_ request]
     (delay (let [claims {;; Issued at (see https://tools.ietf.org/html/rfc7519#section-4.1.6)
@@ -50,3 +50,6 @@
 
   (write-token [_ _ response _]
     response))
+
+(defn signed-token [public-key private-key expiration-period get-subject-fn]
+  (->SignedTokenStrategy public-key private-key expiration-period get-subject-fn))

@@ -1,4 +1,4 @@
-(ns ring.middleware.anti-forgery.strategy.encrypted-token
+(ns ring.middleware.anti-forgery.encrypted-token
   (:require [ring.middleware.anti-forgery.strategy :as strategy]
             [clj-time.core :as time]
             [clj-time.coerce]
@@ -14,9 +14,9 @@
 (defn sha256 [secret]
   (hash/sha256 secret))
 
-(deftype EncryptedTokenSMS [secret expiration-period get-subject-fn]
+(deftype EncryptedTokenStrategy [hashed-secret expiration-period get-subject-fn]
 
-  strategy/StateManagementStrategy
+  strategy/Strategy
 
   (get-token [_ request]
     (delay (jwt/encrypt {:sub (get-subject-fn request)
@@ -30,13 +30,13 @@
 
                          ;; Expires (see https://tools.ietf.org/html/rfc7519#section-4.1.4)
                          :exp (clj-time.coerce/to-epoch (time/plus (time/now) expiration-period))}
-                        secret
+                        hashed-secret
                         crypt-options)))
 
   (valid-token? [_ request token]
     (try
       (let [{:keys [sub]} (jwt/decrypt token
-                                       secret
+                                       hashed-secret
                                        crypt-options)]
         ;; check subject (must either be empty (now, not at token claim) or equal to the one in the claims)
         (when-let [subject (get-subject-fn request)]
@@ -54,3 +54,6 @@
 
   (write-token [_ _ response _]
     response))
+
+(defn encrypted-token [secret expiration-period get-subject-fn]
+  (->EncryptedTokenStrategy (sha256 secret) expiration-period get-subject-fn))

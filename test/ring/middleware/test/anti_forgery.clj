@@ -1,11 +1,10 @@
 (ns ring.middleware.test.anti-forgery
   (:require [ring.middleware.anti-forgery :as af :refer :all]
-            [ring.middleware.anti-forgery.strategy.encrypted-token :as encrypted-token]
-            [ring.middleware.anti-forgery.strategy.signed-token :as signed-token]
+            [ring.middleware.anti-forgery.encrypted-token :as encrypted-token]
+            [ring.middleware.anti-forgery.signed-token :as signed-token]
             [buddy.core.keys :as keys]
             [clj-time.core :as time]
             [ring.middleware.anti-forgery.strategy :as strategy]
-            [ring.middleware.anti-forgery.strategy.session :as session]
             [ring.mock.request :refer [request]]
             [clojure.test :refer :all]))
 
@@ -20,19 +19,19 @@
 (def ^:private privkey (keys/private-key "dev-resources/test-certs/privkey.pem" "antiforgery"))
 (def ^:private other-private-key (keys/private-key "dev-resources/test-certs/privkey-other.pem" "other"))
 
-(def ^:private signed-token-sms (signed-token/->SignedTokenSMS pubkey privkey expires-in-one-hour :identity))
+(def ^:private signed-token-sms (signed-token/signed-token pubkey privkey expires-in-one-hour :identity))
 
-(def ^:private signed-token-options {:state-management-strategy signed-token-sms})
+(def ^:private signed-token-options {:strategy signed-token-sms})
 
 (defn create-signed-csrf-token
   ([privkey expiration]
-   (force (strategy/get-token (signed-token/->SignedTokenSMS nil privkey expiration :identity) nil)))
+   (force (strategy/get-token (signed-token/signed-token nil privkey expiration :identity) nil)))
   ([privkey expiration subject]
-   (force (strategy/get-token (signed-token/->SignedTokenSMS nil privkey expiration :identity) {:identity subject}))))
+   (force (strategy/get-token (signed-token/signed-token nil privkey expiration :identity) {:identity subject}))))
 
 (defn- valid-signed-token? [public-key token]
   (strategy/valid-token?
-    (signed-token/->SignedTokenSMS public-key nil nil :identity)
+    (signed-token/signed-token public-key nil nil :identity)
     nil
     token))
 
@@ -43,21 +42,21 @@
 
 (def ^:private secret "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff")
 
-(def ^:private encrypted-token-sms (encrypted-token/->EncryptedTokenSMS
-                                     (encrypted-token/sha256 secret)
+(def ^:private encrypted-token-sms (encrypted-token/encrypted-token
+                                     secret
                                      expires-in-one-hour :identity))
 
-(def ^:private encrypted-token-options {:state-management-strategy encrypted-token-sms})
+(def ^:private encrypted-token-options {:strategy encrypted-token-sms})
 
 (defn create-encrypted-csrf-token
   ([secret expiration]
-   (force (strategy/get-token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) nil)))
+   (force (strategy/get-token (encrypted-token/encrypted-token secret expiration :identity) nil)))
   ([secret expiration subject]
-   (force (strategy/get-token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) {:identity subject}))))
+   (force (strategy/get-token (encrypted-token/encrypted-token secret expiration :identity) {:identity subject}))))
 
 (defn- valid-encrypted-token? [secret token]
   (strategy/valid-token?
-    (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) nil :identity)
+    (encrypted-token/encrypted-token secret nil :identity)
     nil
     token))
 
@@ -222,6 +221,7 @@
   (let [response {:status 200 :headers {} :session {"foo" "bar"} :body nil}
         handler (wrap-anti-forgery (constantly response) signed-token-options)
         session (:session (handler (request :get "/")))]
+    (println session)
     (is (not (contains? session ::af/anti-forgery-token)))
     (is (= (session "foo") "bar"))))
 
