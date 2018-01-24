@@ -46,7 +46,7 @@ You need to set some options on the `wrap-anti-forgery` middleware:
 
 (def app
   (-> handler
-      wrap-anti-forgery {:state-management-strategy signed-token-sms}))
+      wrap-anti-forgery {:strategy signed-token-sms}))
 ```
 
 Public and private keys were created using commands from https://funcool.github.io/buddy-sign/latest/#generate-keypairs
