@@ -1,65 +1,84 @@
-# Ring-Anti-Forgery
+# Ring-Anti-Forgery Strategies
 
 [![Build Status](https://travis-ci.org/ring-clojure/ring-anti-forgery-strategies.svg?branch=master)](https://travis-ci.org/ring-clojure/ring-anti-forgery-strategies)
 
 Ring middleware extension that prevents [CSRF][1] attacks by via 
-an [encrypted token](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)_Prevention_Cheat_Sheet#Encrypted_Token_Pattern).
-
-Make sure to always use tls (https), here especially use it to prevent replay attacks!
+an [encrypted token][2].
 
 [1]: http://en.wikipedia.org/wiki/Cross-site_request_forgery
+[2]: https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)_Prevention_Cheat_Sheet#Encrypted_Token_Pattern
+
 
 ## Install
 
 Add the following dependency to your `project.clj`:
 
-    [ring/ring-anti-forgery "1.1.0"]
-    [ring/ring-anti-forgery-strategies "1.1.0"]
+    [gorillalabs/ring-anti-forgery "1.1.0"]
+    [gorillalabs/ring-anti-forgery-strategies "1.1.0"]
 
 ## Usage
 
-The `wrap-anti-forgery` middleware should be applied to your Ring
-handler.
+Use the `ring.middleware.anti-forgery/wrap-oauth2` middleware, but add
+the `:strategy` option, using one of the two strategies based upon
+encryption or cryptographic signing.
 
-Any request that isn't a `HEAD` or `GET` request will now require an
-anti-forgery token, or an "access denied" response will be returned.
+### Encrypted token
 
-As default, a synchronizer token pattern is used and the token is
-bound to the session.
- 
-
-You can use the encrypted token mode withoud the `wrap-session` middleware.
-
-You need to set some options on the `wrap-anti-forgery` middleware:
+For a symmetrically encrypted token use 
 
 ```clojure
-(require '[ring.middleware.anti-forgery.strategy.signed-token :as signed-token]
+(require '[ring.middleware.anti-forgery.encrypted-token :as encrypted-token]
          '[ring.middleware.anti-forgery :refer :all]
          '[buddy.core.keys :as keys]
          '[clj-time.core :as time])
 
-(def ^:private signed-token-sms (signed-token/->SignedTokenSMS
-                                  (keys/public-key "dev-resources/test-certs/pubkey.pem")
-                                  (keys/private-key "dev-resources/test-certs/privkey.pem" "antiforgery")
-                                  (time/hours 1)
-                                  :identity))
+(let [expires-in-one-hour      (time/hours 1))
+      secret                   "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff")
+      encrypted-token-strategy (encrypted-token/encrypted-token
+                                     secret
+                                     expires-in-one-hour :identity)]
+
+(wrap-anti-forgery handler {:strategy encrypted-token-strategy})
+```
+
+### Signed token
+
+To cryptographically sign a token, you need a public-/private keypair.
+
+Public and private keys were created using commands from 
+[buddy-sign dokumentation](https://funcool.github.io/buddy-sign/latest/#generate-keypairs).
+
+> Generate aes256 encrypted private key:
+>       
+>     openssl genrsa -aes256 -out privkey.pem 2048
+>       
+> Generate public key from previously created private key:
+>        
+>     openssl rsa -pubout -in privkey.pem -out pubkey.pem
+       
+Maybe you need to install the Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files.
+
+
+```clojure
+(require '[ring.middleware.anti-forgery.signed-token :as signed-token]
+         '[ring.middleware.anti-forgery :refer :all]
+         '[buddy.core.keys :as keys]
+         '[clj-time.core :as time])
+
+(let [signed-token-strategy (signed-token/signed-token
+                              (keys/public-key "dev-resources/test-certs/pubkey.pem")
+                              (keys/private-key "dev-resources/test-certs/privkey.pem" "antiforgery")
+                              (time/hours 1)
+                              :identity)]
 
 (def app
   (-> handler
-      wrap-anti-forgery {:strategy signed-token-sms}))
+      wrap-anti-forgery {:strategy signed-token-sms})))
 ```
 
-Public and private keys were created using commands from https://funcool.github.io/buddy-sign/latest/#generate-keypairs
 
-Generate aes256 encrypted private key:
-       
-    openssl genrsa -aes256 -out privkey.pem 2048
-       
-Generate public key from previously created private key:
-       
-    openssl rsa -pubout -in privkey.pem -out pubkey.pem
-       
-Maybe you need to install the Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files.
+Make sure to always use tls (https) for your services, here especially
+use it to prevent replay attacks!
 
 
 ## License
