@@ -1,14 +1,12 @@
 (ns ring.middleware.test.anti-forgery
-  (:require [ring.middleware.anti-forgery :as af]
-            [ring.middleware.anti-forgery.strategy.encrypted-token :as encrypted-token]
-            [ring.middleware.anti-forgery.strategy.signed-token :as signed-token]
+  (:require [ring.middleware.anti-forgery :as af :refer :all]
+            [ring.middleware.anti-forgery.encrypted-token :as encrypted-token]
+            [ring.middleware.anti-forgery.signed-token :as signed-token]
             [buddy.core.keys :as keys]
             [clj-time.core :as time]
             [ring.middleware.anti-forgery.strategy :as strategy]
-            [ring.middleware.anti-forgery.strategy.session :as session])
-  (:use clojure.test
-        ring.middleware.anti-forgery
-        ring.mock.request))
+            [ring.mock.request :refer [request]]
+            [clojure.test :refer :all]))
 
 (def ^:private expires-in-one-hour (time/hours 1))
 
@@ -21,24 +19,21 @@
 (def ^:private privkey (keys/private-key "dev-resources/test-certs/privkey.pem" "antiforgery"))
 (def ^:private other-private-key (keys/private-key "dev-resources/test-certs/privkey-other.pem" "other"))
 
-(def ^:private signed-token-sms (signed-token/->SignedTokenSMS pubkey privkey expires-in-one-hour :identity))
+(def ^:private signed-token-sms (signed-token/signed-token pubkey privkey expires-in-one-hour :identity))
 
-(def ^:private signed-token-options {:state-management-strategy signed-token-sms})
-
+(def ^:private signed-token-options {:strategy signed-token-sms})
 
 (defn create-signed-csrf-token
   ([privkey expiration]
-   (strategy/token (signed-token/->SignedTokenSMS nil privkey expiration :identity) nil))
+   (force (strategy/get-token (signed-token/signed-token nil privkey expiration :identity) nil)))
   ([privkey expiration subject]
-   (strategy/token (signed-token/->SignedTokenSMS nil privkey expiration :identity) {:identity subject})))
+   (force (strategy/get-token (signed-token/signed-token nil privkey expiration :identity) {:identity subject}))))
 
 (defn- valid-signed-token? [public-key token]
   (strategy/valid-token?
-    (signed-token/->SignedTokenSMS public-key nil nil :identity)
-    token
-    identity))
-
-
+    (signed-token/signed-token public-key nil nil :identity)
+    nil
+    token))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -47,24 +42,23 @@
 
 (def ^:private secret "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff")
 
-(def ^:private encrypted-token-sms (encrypted-token/->EncryptedTokenSMS
-                                     (encrypted-token/sha256 secret)
+(def ^:private encrypted-token-sms (encrypted-token/encrypted-token
+                                     secret
                                      expires-in-one-hour :identity))
 
-(def ^:private encrypted-token-options {:state-management-strategy encrypted-token-sms})
+(def ^:private encrypted-token-options {:strategy encrypted-token-sms})
 
 (defn create-encrypted-csrf-token
   ([secret expiration]
-   (strategy/token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) nil))
+   (force (strategy/get-token (encrypted-token/encrypted-token secret expiration :identity) nil)))
   ([secret expiration subject]
-   (strategy/token (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) expiration :identity) {:identity subject})))
+   (force (strategy/get-token (encrypted-token/encrypted-token secret expiration :identity) {:identity subject}))))
 
 (defn- valid-encrypted-token? [secret token]
   (strategy/valid-token?
-    (encrypted-token/->EncryptedTokenSMS (encrypted-token/sha256 secret) nil :identity)
-    token
-    identity))
-
+    (encrypted-token/encrypted-token secret nil :identity)
+    nil
+    token))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -82,14 +76,13 @@
 
 (deftest forgery-protection-via-signed-token-test
   (let [expired-one-hour-ago (time/hours -1)
-
         response {:status 200, :headers {}, :body "Foo"}
         handler (wrap-anti-forgery (constantly response) signed-token-options)
         status= (partial status=* handler)]
 
     (testing "without anti-forgery-token"
       (are [status req] (status= status req)
-                        403 (-> (request :post "/"))
+                        403 (request :post "/")
                         403 (-> (request :post "/")
                                 (assoc :identity "user-id"))))
 
@@ -130,20 +123,17 @@
       (are [status req] (status= status req)
                         200 (-> (request :post "/")
                                 (assoc :identity "user-id")
-                                (assoc :form-params {"__anti-forgery-token" (create-signed-csrf-token privkey expires-in-one-hour "user-id")}))))
-    ))
-
+                                (assoc :form-params {"__anti-forgery-token" (create-signed-csrf-token privkey expires-in-one-hour "user-id")}))))))
 
 (deftest forgery-protection-via-encrypted-token-test
   (let [expired-one-hour-ago (time/hours -1)
-
         response {:status 200, :headers {}, :body "Foo"}
         handler (wrap-anti-forgery (constantly response) encrypted-token-options)
         status= (partial status=* handler)]
 
     (testing "without anti-forgery-token"
       (are [status req] (status= status req)
-                        403 (-> (request :post "/"))
+                        403 (request :post "/")
                         403 (-> (request :post "/")
                                 (assoc :identity "user-id"))))
 
@@ -184,9 +174,7 @@
       (are [status req] (status= status req)
                         200 (-> (request :post "/")
                                 (assoc :identity "user-id")
-                                (assoc :form-params {"__anti-forgery-token" (create-encrypted-csrf-token secret expires-in-one-hour "user-id")}))))
-    ))
-
+                                (assoc :form-params {"__anti-forgery-token" (create-encrypted-csrf-token secret expires-in-one-hour "user-id")}))))))
 
 (deftest request-method-via-signed-token-test
   (let [response {:status 200, :headers {}, :body "Foo"}
@@ -212,7 +200,6 @@
                       403 (request :patch "/")
                       403 (request :delete "/"))))
 
-
 (deftest token-binding-via-signed-token-test
   (letfn [(handler [request]
             {:status  200
@@ -220,7 +207,6 @@
              :body    @*anti-forgery-token*})]
     (let [response ((wrap-anti-forgery handler signed-token-options) (request :get "/"))]
       (is (valid-signed-token? pubkey (:body response))))))
-
 
 (deftest token-binding-via-encrypted-token-test
   (letfn [(handler [request]
@@ -231,15 +217,13 @@
       (is (< (count (:body response)) 3000))
       (is (valid-encrypted-token? secret (:body response))))))
 
-
 (deftest no-session-response-via-signed-token-test
   (let [response {:status 200 :headers {} :session {"foo" "bar"} :body nil}
         handler (wrap-anti-forgery (constantly response) signed-token-options)
         session (:session (handler (request :get "/")))]
+    (println session)
     (is (not (contains? session ::af/anti-forgery-token)))
     (is (= (session "foo") "bar"))))
-
-
 
 (deftest forgery-protection-cps-via-signed-token-test
   (let [response {:status 200, :headers {}, :body "Foo"}
