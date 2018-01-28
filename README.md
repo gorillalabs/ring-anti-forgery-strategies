@@ -13,8 +13,8 @@ an [encrypted token][2].
 
 Add the following dependency to your `project.clj`:
 
-    [gorillalabs/ring-anti-forgery "1.1.0"]
-    [gorillalabs/ring-anti-forgery-strategies "1.1.0"]
+    [ring/ring-anti-forgery "1.2.0"]
+    [gorillalabs/ring-anti-forgery-strategies "1.2.0"]
 
 ## Usage
 
