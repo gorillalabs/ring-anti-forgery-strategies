@@ -1,12 +1,19 @@
 # Ring-Anti-Forgery Strategies
 
-[![Build Status](https://travis-ci.org/ring-clojure/ring-anti-forgery-strategies.svg?branch=master)](https://travis-ci.org/ring-clojure/ring-anti-forgery-strategies)
 
 Ring middleware extension that prevents [CSRF][1] attacks by via 
-an [encrypted token][2].
+an [encrypted token][2]. Using these strategies, you can protect your
+application against cross-site forgery requests without the need for
+server state.
 
 [1]: http://en.wikipedia.org/wiki/Cross-site_request_forgery
 [2]: https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)_Prevention_Cheat_Sheet#Encrypted_Token_Pattern
+
+--- 
+
+[![Build Status](https://travis-ci.org/gorillalabs/ring-anti-forgery-strategies.svg?branch=master)](https://travis-ci.org/gorillalabs/ring-anti-forgery-strategies)
+
+[![Clojars Project](http://clojars.org/gorillalabs/ring-anti-forgery-strategies/latest-version.svg)](http://clojars.org/gorillalabs/ring-anti-forgery-strategies) 
 
 
 ## Install
@@ -32,13 +39,13 @@ For a symmetrically encrypted token use
          '[buddy.core.keys :as keys]
          '[clj-time.core :as time])
 
-(let [expires-in-one-hour      (time/hours 1))
-      secret                   "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff")
+(let [expires-in-one-hour (time/hours 1)
+      secret "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff"
       encrypted-token-strategy (encrypted-token/encrypted-token
-                                     secret
-                                     expires-in-one-hour :identity)]
+                                 secret
+                                 expires-in-one-hour :identity)]
 
-(wrap-anti-forgery handler {:strategy encrypted-token-strategy})
+  (wrap-anti-forgery handler {:strategy encrypted-token-strategy}))
 ```
 
 ### Signed token
@@ -65,15 +72,15 @@ Maybe you need to install the Java Cryptography Extension (JCE) Unlimited Streng
          '[buddy.core.keys :as keys]
          '[clj-time.core :as time])
 
-(let [signed-token-strategy (signed-token/signed-token
+(let [expires-in-one-hour (time/hours 1)
+      secret "secret-to-validate-token-after-decryption-to-make-sure-i-encrypted-stuff"
+      signed-token-strategy (signed-token/signed-token
                               (keys/public-key "dev-resources/test-certs/pubkey.pem")
                               (keys/private-key "dev-resources/test-certs/privkey.pem" "antiforgery")
-                              (time/hours 1)
+                              expires-in-one-hour
                               :identity)]
 
-(def app
-  (-> handler
-      wrap-anti-forgery {:strategy signed-token-sms})))
+  (wrap-anti-forgery handler {:strategy signed-token-strategy}))
 ```
 
 
