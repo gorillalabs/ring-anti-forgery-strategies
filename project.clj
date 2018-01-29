@@ -1,6 +1,6 @@
 (defproject gorillalabs/ring-anti-forgery-strategies "0.0.0"
             :description "Ring middleware to prevent CSRF attacks"
-            :url "https://github.com/ring-clojure/ring-anti-forgery-strategies"
+            :url "https://github.com/gorillalabs/ring-anti-forgery-strategies"
             :license {:name "The MIT License"
                       :url  "http://opensource.org/licenses/MIT"}
             :middleware [leiningen.v/dependency-version-from-scm
@@ -24,7 +24,7 @@
              :1.9 {:dependencies [[org.clojure/clojure "1.9.0"]]}}
             :vcs :git
             :scm {:name "git"
-                  :url  "https://github.com/gorillalabs/ring-anti-forgery"}
+                  :url  "https://github.com/gorillalabs/ring-anti-forgery-strategies"}
 
             :deploy-repositories [["releases" :clojars]]
             :release-tasks [["vcs" "assert-committed"]
