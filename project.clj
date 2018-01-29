@@ -8,7 +8,7 @@
                          leiningen.v/add-workspace-data]
             :plugins [[com.roomkey/lein-v "6.2.0"]]
             :dependencies [[org.clojure/clojure "1.8.0"]
-                           [gorillalabs/ring-anti-forgery "1.3.0-beta"]
+                           [ring/ring-anti-forgery "1.2.0"]
                            [org.clojure/tools.logging "0.4.0"]
                            [crypto-random "1.2.0"]
                            [crypto-equality "1.0.0"]
